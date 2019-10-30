@@ -6,25 +6,36 @@
 #include <gl\gl.h>
 #include <gl\glu.h>
 
-#define _UI_IMPLEMENTATION
-#include "ui.h"
+#include "common.h"
+
+const int SCREEN_WIDTH = 640;
+const int SCREEN_HEIGHT = 480;
 
 typedef struct
 {
     SDL_Window*     window;
     SDL_GLContext   context;
     bool            render_quad;
+    int             window_width;
+    int             window_height;
 } global_state;
 
 global_state g_state = {
     0,
     {},
-    true
+    true,
+    SCREEN_WIDTH,
+    SCREEN_HEIGHT
 };
 
-//Screen dimension constants
-const int SCREEN_WIDTH = 640;
-const int SCREEN_HEIGHT = 480;
+#define _UI_IMPLEMENTATION
+#include "ui.h"
+#define _FONT_IMPLEMENTATION_
+#include "font.h"
+#define _RENDERER_IMPLEMENTATION_H
+#include "renderer.h"
+
+
 
 bool initGL()
 {
@@ -88,7 +99,7 @@ bool init()
         SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 1 );
 
         //Create window
-        g_state.window = SDL_CreateWindow( "SDL Tutorial", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN );
+        g_state.window = SDL_CreateWindow( "SDL Tutorial", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN );
         if( g_state.window == NULL )
         {
             printf( "Window could not be created! SDL Error: %s\n", SDL_GetError() );
@@ -147,12 +158,9 @@ void render()
     //Render quad
     if (g_state.render_quad)
     {
-        glBegin(GL_QUADS);
-            glVertex2f(-0.5f, -0.5f);
-            glVertex2f(0.5f, -0.5f);
-            glVertex2f(0.5f, 0.5f);
-            glVertex2f(-0.5f, 0.5f);
-        glEnd();
+        vec2 pos  = {100, 100};
+        vec2 size = {300, 400};
+        graphics::draw_rect(pos, size);
     }
 }
 
@@ -175,6 +183,15 @@ int main()
                 int x = 0, y = 0;
                 SDL_GetMouseState(&x, &y);
                 handleKeys(e.text.text[0], x, y);
+            }
+            else if (e.type == SDL_WINDOWEVENT)
+            {
+                if (e.window.event == SDL_WINDOWEVENT_RESIZED)
+                {
+                    printf("%s\n", __FUNCTION__);
+                    g_state.window_width  = e.window.data1;
+                    g_state.window_height = e.window.data2;
+                }
             }
         }
         render();
