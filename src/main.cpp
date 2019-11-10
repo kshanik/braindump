@@ -13,6 +13,8 @@
 #include <SDL.h>
 #include <SDL_opengl.h>
 
+#include <vector>
+
 #include "state.h"
 #include "editor.cpp"
 #include "menu.cpp"

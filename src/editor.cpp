@@ -1,22 +1,51 @@
 #include "imgui_internal.h"
 #include <math.h> // fmodf
 
-// NB: You can use math functions/operators on ImVec2 if you #define IMGUI_DEFINE_MATH_OPERATORS and #include "imgui_internal.h"
-// Here we only declare simple +/- operators so others don't leak into the demo code.
-static inline ImVec2 operator+(const ImVec2& lhs, const ImVec2& rhs) { return ImVec2(lhs.x + rhs.x, lhs.y + rhs.y); }
-static inline ImVec2 operator-(const ImVec2& lhs, const ImVec2& rhs) { return ImVec2(lhs.x - rhs.x, lhs.y - rhs.y); }
-
 int index_of_node(Node *node)
 {
-    const ImVector<Node*> &nodes = g_state.nodes;
-    for (int i = 0; i < nodes.Size; i++)
+    for (int i = 0; i < g_state.nodes.size(); i++)
     {
-        if (node == nodes[i])
+        if (node == g_state.nodes[i])
         {
             return i;
         }
     }
     return -1;
+}
+
+void add_child(Node *node)
+{
+    ImVec2 pos;
+    pos.x = node->Pos.x + node->Size.x;
+    pos.y = node->Pos.y;
+    Node *new_node = new Node(g_state.nodes.size(), "Sub Topic", pos, 0.5f, ImColor(100, 100, 200), 2, 2, SubTopic, node);
+    node->children.push_back(new_node);
+    g_state.nodes.push_back(new_node);
+    NodeLink *link = new NodeLink(g_state.node_selected, 0, g_state.nodes.size()-1, 0);
+    g_state.links.push_back(link);
+    g_state.node_selected = g_state.nodes.size()-1;
+}
+
+void add_sibling(Node *node)
+{
+    ImVec2 pos;
+    int parent_index = index_of_node(node->parent);
+    int selected_node_index = index_of_node(node);
+    if (node->parent != 0 && parent_index > -1 && selected_node_index > -1)
+    {
+        pos.x = node->Pos.x;
+        pos.y = node->Pos.y + node->Size.y;
+        std::vector<Node*>::iterator it;
+        it = std::find(node->parent->children.begin(), node->parent->children.end(), node);
+        if (it != node->parent->children.end())
+        {
+            Node *new_node = new Node(g_state.nodes.size(), "Sub Topic", pos, 0.5f, ImColor(100, 100, 200), 2, 2, SubTopic, node->parent);
+            g_state.nodes.push_back(new_node);
+            node->parent->children.insert(it, new_node);
+            g_state.links.push_back(new NodeLink(parent_index, 0, g_state.nodes.size()-1, 0));
+            g_state.node_selected = g_state.nodes.size()-1;
+        }
+    }
 }
 
 // Really dumb data structure provided for the example.
@@ -39,7 +68,7 @@ static void draw_editor(bool* opened)
         ImGui::BeginChild("node_list", ImVec2(100, 0));
         ImGui::Text("Nodes");
         ImGui::Separator();
-        for (int node_idx = 0; node_idx < g_state.nodes.Size; node_idx++)
+        for (int node_idx = 0; node_idx < g_state.nodes.size(); node_idx++)
         {
             Node* node = g_state.nodes[node_idx];
             ImGui::PushID(node->ID);
@@ -88,7 +117,7 @@ static void draw_editor(bool* opened)
     // Display links
     draw_list->ChannelsSplit(2);
     draw_list->ChannelsSetCurrent(0); // Background
-    for (int link_idx = 0; link_idx < g_state.links.Size; link_idx++)
+    for (int link_idx = 0; link_idx < g_state.links.size(); link_idx++)
     {
         NodeLink* link = g_state.links[link_idx];
         Node* node_inp = g_state.nodes[link->InputIdx];
@@ -101,7 +130,7 @@ static void draw_editor(bool* opened)
     ImVec2 scene_pos = ImGui::GetMousePosOnOpeningCurrentPopup() - offset;
 
     // Display nodes
-    for (int node_idx = 0; node_idx < g_state.nodes.Size; node_idx++)
+    for (int node_idx = 0; node_idx < g_state.nodes.size(); node_idx++)
     {
         Node* node = g_state.nodes[node_idx];
         ImGui::PushID(node->ID);
@@ -119,13 +148,7 @@ static void draw_editor(bool* opened)
             {
                 if (ImGui::IsKeyPressedMap(ImGuiKey_Tab))
                 {
-                    ImVec2 scene_pos;
-                    scene_pos.x = g_state.nodes[g_state.node_selected]->Pos.x + g_state.nodes[g_state.node_selected]->Size.x;
-                    scene_pos.y = g_state.nodes[g_state.node_selected]->Pos.y;
-                    g_state.nodes.push_back(new Node(g_state.nodes.Size, "Sub Topic", scene_pos, 0.5f, ImColor(100, 100, 200), 2, 2, SubTopic, g_state.nodes[g_state.node_selected]));
-                    g_state.links.push_back(new NodeLink(g_state.node_selected, 0, g_state.nodes.Size-1, 0));
-                    g_state.node_selected = g_state.nodes.Size-1;
-                    fflush(stdout);
+                    add_child(g_state.nodes[g_state.node_selected]);
                     return 1;
                 }
                 return 0; 
@@ -168,7 +191,7 @@ static void draw_editor(bool* opened)
 
         ImU32 node_bg_color = (node_hovered_in_list == node->ID || node_hovered_in_scene == node->ID || (node_hovered_in_list == -1 && g_state.node_selected == node->ID)) ? IM_COL32(75, 75, 75, 255) : IM_COL32(60, 60, 60, 255);
         draw_list->AddRectFilled(node_rect_min, node_rect_max, node_bg_color, 4.0f);
-        draw_list->AddRect(node_rect_min, node_rect_max, IM_COL32(100, 100, 100, 255), 4.0f, ImDrawCornerFlags_All, node->Type == MainTopic ? 4.0f : 1.0f);
+        draw_list->AddRect(node_rect_min, node_rect_max, node->Type == MainTopic ? IM_COL32(100, 0, 100, 255) : IM_COL32(100, 100, 100, 255), 4.0f, ImDrawCornerFlags_All, node->Type == MainTopic ? 4.0f : 1.0f);
         // for (int slot_idx = 0; slot_idx < node->InputsCount; slot_idx++)
         //     draw_list->AddCircleFilled(offset + node->GetInputSlotPos(slot_idx), NODE_SLOT_RADIUS, IM_COL32(150, 150, 150, 150));
         // for (int slot_idx = 0; slot_idx < node->OutputsCount; slot_idx++)
@@ -207,7 +230,7 @@ static void draw_editor(bool* opened)
         }
         else
         {
-            if (ImGui::MenuItem("Add")) { g_state.nodes.push_back(new Node(g_state.nodes.Size, "Sub Topic", scene_pos, 0.5f, ImColor(100, 100, 200), 2, 2, MainTopic, 0)); }
+            if (ImGui::MenuItem("Add")) { g_state.nodes.push_back(new Node(g_state.nodes.size(), "Sub Topic", scene_pos, 0.5f, ImColor(100, 100, 200), 2, 2, MainTopic, 0)); }
             if (ImGui::MenuItem("Paste", NULL, false, false)) {}
         }
         ImGui::EndPopup();
@@ -217,8 +240,8 @@ static void draw_editor(bool* opened)
 
     if (ImGui::IsMouseDoubleClicked(0))
     {
-        g_state.nodes.push_back(new Node(g_state.nodes.Size, "Main Topic", scene_pos, 0.5f, ImColor(100, 100, 200), 2, 2, MainTopic, 0));
-        g_state.node_selected = g_state.nodes.Size-1;
+        g_state.nodes.push_back(new Node(g_state.nodes.size(), "Main Topic", scene_pos, 0.5f, ImColor(100, 100, 200), 2, 2, MainTopic, 0));
+        g_state.node_selected = g_state.nodes.size()-1;
     }
 
     // Scrolling
@@ -234,23 +257,11 @@ static void draw_editor(bool* opened)
         }
     }
 
-    if (ImGui::IsKeyPressedMap(ImGuiKey_Enter))
+    if (ImGui::IsKeyPressedMap(ImGuiKey_Enter) || ImGui::IsKeyPressedMap(ImGuiKey_KeyPadEnter))
     {
-        printf("%s\n", ">>Enter pressed!!");
-        fflush(stdout);
         if (g_state.node_selected > -1)
         {
-            Node *selected_node = g_state.nodes[g_state.node_selected];
-            int parent_index = index_of_node(selected_node->parent);
-            int selected_node_index = index_of_node(selected_node);
-            if (selected_node->parent != 0 && parent_index > -1 && selected_node_index > -1)
-            {
-                scene_pos.x = selected_node->Pos.x;
-                scene_pos.y = selected_node->Pos.y + selected_node->Size.y;
-                g_state.nodes.push_back(new Node(g_state.nodes.Size, "Sub Topic", scene_pos, 0.5f, ImColor(100, 100, 200), 2, 2, SubTopic, selected_node->parent));
-                g_state.links.push_back(new NodeLink(parent_index, 0, g_state.nodes.Size-1, 0));
-                g_state.node_selected = g_state.nodes.Size-1;
-            }
+            add_sibling(g_state.nodes[g_state.node_selected]);
         }
     }
 
