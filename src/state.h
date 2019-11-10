@@ -27,7 +27,13 @@ struct Node
 
     Node(int id, const char* name, const ImVec2& pos, float value, const ImVec4& color, int inputs_count, int outputs_count, NodeType type, Node *p)
     {
-        ID = id; strncpy(Name, name, 31); Name[31] = 0; Pos = pos; Value = value; Color = color; InputsCount = inputs_count; OutputsCount = outputs_count;
+        ID = id;
+        strcpy(Name, name);
+        Pos = pos;
+        Value = value;
+        Color = color;
+        InputsCount = inputs_count;
+        OutputsCount = outputs_count;
         Type = type;
         parent = p;
     }

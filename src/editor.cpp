@@ -1,6 +1,8 @@
 #include "imgui_internal.h"
 #include <math.h> // fmodf
 
+#define PADDING_BETWEEN_PARENT_CHILD 30
+
 int index_of_node(Node *node)
 {
     for (int i = 0; i < g_state.nodes.size(); i++)
@@ -16,7 +18,7 @@ int index_of_node(Node *node)
 void add_child(Node *node)
 {
     ImVec2 pos;
-    pos.x = node->Pos.x + node->Size.x;
+    pos.x = node->Pos.x + node->Size.x + PADDING_BETWEEN_PARENT_CHILD;
     pos.y = node->Pos.y;
     Node *new_node = new Node(g_state.nodes.size(), "Sub Topic", pos, 0.5f, ImColor(100, 100, 200), 2, 2, SubTopic, node);
     node->children.push_back(new_node);
@@ -124,7 +126,7 @@ static void draw_editor(bool* opened)
         Node* node_out = g_state.nodes[link->OutputIdx];
         ImVec2 p1 = offset + node_inp->GetOutputSlotPos(link->InputSlot);
         ImVec2 p2 = offset + node_out->GetInputSlotPos(link->OutputSlot);
-        draw_list->AddBezierCurve(p1, p1 + ImVec2(+50, 0), p2 + ImVec2(-50, 0), p2, IM_COL32(200, 200, 100, 255), 3.0f);
+        draw_list->AddBezierCurve(p1, p1 + ImVec2(+50, 0), p2 + ImVec2(-50, 0), p2, IM_COL32(200, 200, 100, 255), 1.0f);
     }
 
     ImVec2 scene_pos = ImGui::GetMousePosOnOpeningCurrentPopup() - offset;
@@ -161,7 +163,10 @@ static void draw_editor(bool* opened)
             {
                ImGui::SetKeyboardFocusHere(0);
             }
+            ImVec2 text_size = ImGui::CalcTextSize(node->Name);
+            ImGui::PushItemWidth(text_size.x);
             ImGui::InputText("", node->Name, IM_ARRAYSIZE(node->Name), ImGuiInputTextFlags_CallbackCharFilter|ImGuiInputTextFlags_AllowTabInput, TextFilters::FilterImGuiLetters);
+            ImGui::PopItemWidth();
         }
         else
         {
@@ -247,7 +252,7 @@ static void draw_editor(bool* opened)
     // Scrolling
     if (ImGui::IsWindowHovered() && !ImGui::IsAnyItemActive())
     {
-        if (ImGui::IsMouseDragging(3, 0.0f))
+        if (ImGui::IsMouseDragging(3, 0.0f) || ImGui::IsMouseDown(3))
         {
             g_state.scrolling = g_state.scrolling + ImGui::GetIO().MouseDelta;
         }
