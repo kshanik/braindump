@@ -4,6 +4,7 @@ enum NodeType
     SubTopic,
 };
 
+struct Node;
 struct Node
 {
     int      ID;
@@ -14,11 +15,13 @@ struct Node
     ImVec4   Color;
     int      InputsCount, OutputsCount;
     bool     Focused;
+    Node    *parent;
 
-    Node(int id, const char* name, const ImVec2& pos, float value, const ImVec4& color, int inputs_count, int outputs_count, NodeType type)
+    Node(int id, const char* name, const ImVec2& pos, float value, const ImVec4& color, int inputs_count, int outputs_count, NodeType type, Node *p)
     {
         ID = id; strncpy(Name, name, 31); Name[31] = 0; Pos = pos; Value = value; Color = color; InputsCount = inputs_count; OutputsCount = outputs_count;
         Type = type;
+        parent = p;
     }
 
     ImVec2 GetInputSlotPos(int slot_no) const { return ImVec2(Pos.x, Pos.y + Size.y * ((float)slot_no + 1) / ((float)InputsCount + 1)); }
@@ -34,8 +37,8 @@ struct NodeLink
 
 typedef struct
 {
-    ImVector<Node> nodes;
-    ImVector<NodeLink> links;
+    ImVector<Node*> nodes;
+    ImVector<NodeLink*> links;
     bool about_open;
     bool show_grid;
     bool show_nodes;

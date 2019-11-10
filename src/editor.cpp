@@ -6,6 +6,19 @@
 static inline ImVec2 operator+(const ImVec2& lhs, const ImVec2& rhs) { return ImVec2(lhs.x + rhs.x, lhs.y + rhs.y); }
 static inline ImVec2 operator-(const ImVec2& lhs, const ImVec2& rhs) { return ImVec2(lhs.x - rhs.x, lhs.y - rhs.y); }
 
+int index_of_node(Node *node)
+{
+    const ImVector<Node*> &nodes = g_state.nodes;
+    for (int i = 0; i < nodes.Size; i++)
+    {
+        if (node == nodes[i])
+        {
+            return i;
+        }
+    }
+    return -1;
+}
+
 // Really dumb data structure provided for the example.
 // Note that we storing links are INDICES (not ID) to make example code shorter, obviously a bad idea for any general purpose code.
 static void draw_editor(bool* opened)
@@ -28,7 +41,7 @@ static void draw_editor(bool* opened)
         ImGui::Separator();
         for (int node_idx = 0; node_idx < g_state.nodes.Size; node_idx++)
         {
-            Node* node = &g_state.nodes[node_idx];
+            Node* node = g_state.nodes[node_idx];
             ImGui::PushID(node->ID);
             if (ImGui::Selectable(node->Name, node->ID == g_state.node_selected))
                 g_state.node_selected = node->ID;
@@ -77,9 +90,9 @@ static void draw_editor(bool* opened)
     draw_list->ChannelsSetCurrent(0); // Background
     for (int link_idx = 0; link_idx < g_state.links.Size; link_idx++)
     {
-        NodeLink* link = &g_state.links[link_idx];
-        Node* node_inp = &g_state.nodes[link->InputIdx];
-        Node* node_out = &g_state.nodes[link->OutputIdx];
+        NodeLink* link = g_state.links[link_idx];
+        Node* node_inp = g_state.nodes[link->InputIdx];
+        Node* node_out = g_state.nodes[link->OutputIdx];
         ImVec2 p1 = offset + node_inp->GetOutputSlotPos(link->InputSlot);
         ImVec2 p2 = offset + node_out->GetInputSlotPos(link->OutputSlot);
         draw_list->AddBezierCurve(p1, p1 + ImVec2(+50, 0), p2 + ImVec2(-50, 0), p2, IM_COL32(200, 200, 100, 255), 3.0f);
@@ -90,7 +103,7 @@ static void draw_editor(bool* opened)
     // Display nodes
     for (int node_idx = 0; node_idx < g_state.nodes.Size; node_idx++)
     {
-        Node* node = &g_state.nodes[node_idx];
+        Node* node = g_state.nodes[node_idx];
         ImGui::PushID(node->ID);
         ImVec2 node_rect_min = offset + node->Pos;
 
@@ -106,10 +119,11 @@ static void draw_editor(bool* opened)
             {
                 if (ImGui::IsKeyPressedMap(ImGuiKey_Tab))
                 {
-                    ImVec2 offset = ImGui::GetCursorScreenPos() + g_state.scrolling;
-                    ImVec2 scene_pos = offset;
-                    g_state.nodes.push_back(Node(g_state.nodes.Size, "New node", scene_pos, 0.5f, ImColor(100, 100, 200), 2, 2, SubTopic)); 
-                    g_state.links.push_back(NodeLink(g_state.node_selected, 0, g_state.nodes.Size-1, 0));
+                    ImVec2 scene_pos;
+                    scene_pos.x = g_state.nodes[g_state.node_selected]->Pos.x + g_state.nodes[g_state.node_selected]->Size.x;
+                    scene_pos.y = g_state.nodes[g_state.node_selected]->Pos.y;
+                    g_state.nodes.push_back(new Node(g_state.nodes.Size, "Sub Topic", scene_pos, 0.5f, ImColor(100, 100, 200), 2, 2, SubTopic, g_state.nodes[g_state.node_selected]));
+                    g_state.links.push_back(new NodeLink(g_state.node_selected, 0, g_state.nodes.Size-1, 0));
                     g_state.node_selected = g_state.nodes.Size-1;
                     fflush(stdout);
                     return 1;
@@ -182,7 +196,7 @@ static void draw_editor(bool* opened)
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8, 8));
     if (ImGui::BeginPopup("context_menu"))
     {
-        Node* node = g_state.node_selected != -1 ? &g_state.nodes[g_state.node_selected] : NULL;
+        Node* node = g_state.node_selected != -1 ? g_state.nodes[g_state.node_selected] : NULL;
         if (node)
         {
             ImGui::Text("Node '%s'", node->Name);
@@ -193,22 +207,52 @@ static void draw_editor(bool* opened)
         }
         else
         {
-            if (ImGui::MenuItem("Add")) { g_state.nodes.push_back(Node(g_state.nodes.Size, "New node", scene_pos, 0.5f, ImColor(100, 100, 200), 2, 2, MainTopic)); }
+            if (ImGui::MenuItem("Add")) { g_state.nodes.push_back(new Node(g_state.nodes.Size, "Sub Topic", scene_pos, 0.5f, ImColor(100, 100, 200), 2, 2, MainTopic, 0)); }
             if (ImGui::MenuItem("Paste", NULL, false, false)) {}
         }
         ImGui::EndPopup();
     }
     ImGui::PopStyleVar();
 
+
     if (ImGui::IsMouseDoubleClicked(0))
     {
-        g_state.nodes.push_back(Node(g_state.nodes.Size, "New node", scene_pos, 0.5f, ImColor(100, 100, 200), 2, 2, MainTopic));
+        g_state.nodes.push_back(new Node(g_state.nodes.Size, "Main Topic", scene_pos, 0.5f, ImColor(100, 100, 200), 2, 2, MainTopic, 0));
         g_state.node_selected = g_state.nodes.Size-1;
     }
 
     // Scrolling
-    if (ImGui::IsWindowHovered() && !ImGui::IsAnyItemActive() && ImGui::IsMouseDragging(2, 0.0f))
-        g_state.scrolling = g_state.scrolling + ImGui::GetIO().MouseDelta;
+    if (ImGui::IsWindowHovered() && !ImGui::IsAnyItemActive())
+    {
+        if (ImGui::IsMouseDragging(3, 0.0f))
+        {
+            g_state.scrolling = g_state.scrolling + ImGui::GetIO().MouseDelta;
+        }
+        else if (ImGui::IsMouseDown(0))
+        {
+            g_state.node_selected = -1;
+        }
+    }
+
+    if (ImGui::IsKeyPressedMap(ImGuiKey_Enter))
+    {
+        printf("%s\n", ">>Enter pressed!!");
+        fflush(stdout);
+        if (g_state.node_selected > -1)
+        {
+            Node *selected_node = g_state.nodes[g_state.node_selected];
+            int parent_index = index_of_node(selected_node->parent);
+            int selected_node_index = index_of_node(selected_node);
+            if (selected_node->parent != 0 && parent_index > -1 && selected_node_index > -1)
+            {
+                scene_pos.x = selected_node->Pos.x;
+                scene_pos.y = selected_node->Pos.y + selected_node->Size.y;
+                g_state.nodes.push_back(new Node(g_state.nodes.Size, "Sub Topic", scene_pos, 0.5f, ImColor(100, 100, 200), 2, 2, SubTopic, selected_node->parent));
+                g_state.links.push_back(new NodeLink(parent_index, 0, g_state.nodes.Size-1, 0));
+                g_state.node_selected = g_state.nodes.Size-1;
+            }
+        }
+    }
 
     ImGui::PopItemWidth();
     ImGui::EndChild();
