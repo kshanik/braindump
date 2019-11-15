@@ -31,8 +31,8 @@ void add_child(Node *node)
 void add_sibling(Node *node)
 {
     ImVec2 pos;
-    int parent_index = index_of_node(node->parent);
-    int selected_node_index = index_of_node(node);
+    int parent_index = node->parent->ID;
+    int selected_node_index = node->ID;
     if (node->parent != 0 && parent_index > -1 && selected_node_index > -1)
     {
         pos.x = node->Pos.x;
@@ -132,76 +132,95 @@ static void draw_editor(bool* opened)
     ImVec2 scene_pos = ImGui::GetMousePosOnOpeningCurrentPopup() - offset;
 
     // Display nodes
-    for (int node_idx = 0; node_idx < g_state.nodes.size(); node_idx++)
+    for (int main_topic_idx = 0; main_topic_idx < g_state.main_topics.size(); main_topic_idx++)
     {
-        Node* node = g_state.nodes[node_idx];
-        ImGui::PushID(node->ID);
-        ImVec2 node_rect_min = offset + node->Pos;
-
-        // Display node contents first
-        draw_list->ChannelsSetCurrent(1); // Foreground
-        bool old_any_active = ImGui::IsAnyItemActive();
-        ImGui::SetCursorScreenPos(node_rect_min + NODE_WINDOW_PADDING);
-        ImGui::BeginGroup(); // Lock horizontal position
-
-        struct TextFilters
+        Node *main_topic = g_state.main_topics[main_topic_idx];
+        std::vector<Node*> nodes;
+        nodes.push_back(main_topic);
+        while (nodes.size() > 0)
         {
-            static int FilterImGuiLetters(ImGuiInputTextCallbackData* data) 
+            std::vector<Node*> new_nodes;
+            for (int node_idx = 0; node_idx < nodes.size(); node_idx++)
             {
-                if (ImGui::IsKeyPressedMap(ImGuiKey_Tab))
+                Node *node = nodes[node_idx];
+                ImGui::PushID(node->ID);
+                ImVec2 node_rect_min = offset + node->Pos;
+
+                // Display node contents first
+                draw_list->ChannelsSetCurrent(1); // Foreground
+                bool old_any_active = ImGui::IsAnyItemActive();
+                ImGui::SetCursorScreenPos(node_rect_min + NODE_WINDOW_PADDING);
+                ImGui::BeginGroup(); // Lock horizontal position
+
+                struct TextFilters
                 {
-                    add_child(g_state.nodes[g_state.node_selected]);
-                    return 1;
+                    static int FilterImGuiLetters(ImGuiInputTextCallbackData* data) 
+                    {
+                        if (ImGui::IsKeyPressedMap(ImGuiKey_Tab))
+                        {
+                            add_child(g_state.nodes[g_state.node_selected]);
+                            return 1;
+                        }
+                        return 0; 
+                    }
+                };
+
+                if (g_state.node_selected == node->ID)
+                {
+                    if (ImGui::IsRootWindowOrAnyChildFocused() && !ImGui::IsAnyItemActive() && !ImGui::IsMouseClicked(0))
+                    {
+                       ImGui::SetKeyboardFocusHere(0);
+                    }
+                    ImVec2 text_size = ImGui::CalcTextSize(node->Name);
+                    ImGui::PushItemWidth(text_size.x+10);
+                    ImGui::InputText("", node->Name, IM_ARRAYSIZE(node->Name), ImGuiInputTextFlags_CallbackCharFilter|ImGuiInputTextFlags_AllowTabInput, TextFilters::FilterImGuiLetters);
+                    ImGui::PopItemWidth();
                 }
-                return 0; 
+                else
+                {
+                    ImVec2 text_size = ImGui::CalcTextSize(node->Name);
+                    ImGui::PushItemWidth(text_size.x+10);
+                    ImGui::Text(node->Name);
+                    ImGui::PopItemWidth();
+                }
+                ImGui::EndGroup();
+
+                // Save the size of what we have emitted and whether any of the widgets are being used
+                bool node_widgets_active = (!old_any_active && ImGui::IsAnyItemActive());
+                node->Size = ImGui::GetItemRectSize() + NODE_WINDOW_PADDING + NODE_WINDOW_PADDING;
+                ImVec2 node_rect_max = node_rect_min + node->Size;
+
+                // Display node box
+                draw_list->ChannelsSetCurrent(0); // Background
+                ImGui::SetCursorScreenPos(node_rect_min);
+                ImGui::InvisibleButton("node", node->Size);
+                if (ImGui::IsItemHovered())
+                {
+                    node_hovered_in_scene = node->ID;
+                    open_context_menu |= ImGui::IsMouseClicked(1);
+                }
+                bool node_moving_active = ImGui::IsItemActive();
+                if (node_widgets_active || node_moving_active)
+                    g_state.node_selected = node->ID;
+                if (node_moving_active && ImGui::IsMouseDragging(0))
+                    node->Pos = node->Pos + ImGui::GetIO().MouseDelta;
+
+                ImU32 node_bg_color = (node_hovered_in_list == node->ID || node_hovered_in_scene == node->ID || (node_hovered_in_list == -1 && g_state.node_selected == node->ID)) ? IM_COL32(75, 75, 75, 255) : IM_COL32(60, 60, 60, 255);
+                draw_list->AddRectFilled(node_rect_min, node_rect_max, node_bg_color, 4.0f);
+                draw_list->AddRect(node_rect_min, node_rect_max, node->Type == MainTopic ? IM_COL32(100, 0, 100, 255) : IM_COL32(100, 100, 100, 255), 4.0f, ImDrawCornerFlags_All, node->Type == MainTopic ? 4.0f : 1.0f);
+                // for (int slot_idx = 0; slot_idx < node->InputsCount; slot_idx++)
+                //     draw_list->AddCircleFilled(offset + node->GetInputSlotPos(slot_idx), NODE_SLOT_RADIUS, IM_COL32(150, 150, 150, 150));
+                // for (int slot_idx = 0; slot_idx < node->OutputsCount; slot_idx++)
+                //     draw_list->AddCircleFilled(offset + node->GetOutputSlotPos(slot_idx), NODE_SLOT_RADIUS, IM_COL32(150, 150, 150, 150));
+                ImGui::PopID();
+
+                for (int child_idx = 0; child_idx < node->children.size(); child_idx++)
+                {
+                    new_nodes.push_back(node->children[child_idx]);
+                }
             }
-        };
-
-        if (g_state.node_selected == node_idx)
-        {
-            if (ImGui::IsRootWindowOrAnyChildFocused() && !ImGui::IsAnyItemActive() && !ImGui::IsMouseClicked(0))
-            {
-               ImGui::SetKeyboardFocusHere(0);
-            }
-            ImVec2 text_size = ImGui::CalcTextSize(node->Name);
-            ImGui::PushItemWidth(text_size.x);
-            ImGui::InputText("", node->Name, IM_ARRAYSIZE(node->Name), ImGuiInputTextFlags_CallbackCharFilter|ImGuiInputTextFlags_AllowTabInput, TextFilters::FilterImGuiLetters);
-            ImGui::PopItemWidth();
+            nodes = new_nodes;
         }
-        else
-        {
-            ImGui::Text(node->Name);
-        }
-        ImGui::EndGroup();
-
-        // Save the size of what we have emitted and whether any of the widgets are being used
-        bool node_widgets_active = (!old_any_active && ImGui::IsAnyItemActive());
-        node->Size = ImGui::GetItemRectSize() + NODE_WINDOW_PADDING + NODE_WINDOW_PADDING;
-        ImVec2 node_rect_max = node_rect_min + node->Size;
-
-        // Display node box
-        draw_list->ChannelsSetCurrent(0); // Background
-        ImGui::SetCursorScreenPos(node_rect_min);
-        ImGui::InvisibleButton("node", node->Size);
-        if (ImGui::IsItemHovered())
-        {
-            node_hovered_in_scene = node->ID;
-            open_context_menu |= ImGui::IsMouseClicked(1);
-        }
-        bool node_moving_active = ImGui::IsItemActive();
-        if (node_widgets_active || node_moving_active)
-            g_state.node_selected = node->ID;
-        if (node_moving_active && ImGui::IsMouseDragging(0))
-            node->Pos = node->Pos + ImGui::GetIO().MouseDelta;
-
-        ImU32 node_bg_color = (node_hovered_in_list == node->ID || node_hovered_in_scene == node->ID || (node_hovered_in_list == -1 && g_state.node_selected == node->ID)) ? IM_COL32(75, 75, 75, 255) : IM_COL32(60, 60, 60, 255);
-        draw_list->AddRectFilled(node_rect_min, node_rect_max, node_bg_color, 4.0f);
-        draw_list->AddRect(node_rect_min, node_rect_max, node->Type == MainTopic ? IM_COL32(100, 0, 100, 255) : IM_COL32(100, 100, 100, 255), 4.0f, ImDrawCornerFlags_All, node->Type == MainTopic ? 4.0f : 1.0f);
-        // for (int slot_idx = 0; slot_idx < node->InputsCount; slot_idx++)
-        //     draw_list->AddCircleFilled(offset + node->GetInputSlotPos(slot_idx), NODE_SLOT_RADIUS, IM_COL32(150, 150, 150, 150));
-        // for (int slot_idx = 0; slot_idx < node->OutputsCount; slot_idx++)
-        //     draw_list->AddCircleFilled(offset + node->GetOutputSlotPos(slot_idx), NODE_SLOT_RADIUS, IM_COL32(150, 150, 150, 150));
-        ImGui::PopID();
     }
     draw_list->ChannelsMerge();
 
@@ -235,7 +254,12 @@ static void draw_editor(bool* opened)
         }
         else
         {
-            if (ImGui::MenuItem("Add")) { g_state.nodes.push_back(new Node(g_state.nodes.size(), "Sub Topic", scene_pos, 0.5f, ImColor(100, 100, 200), 2, 2, MainTopic, 0)); }
+            if (ImGui::MenuItem("Add"))
+            {
+                Node *main_topic = new Node(g_state.nodes.size(), "Sub Topic", scene_pos, 0.5f, ImColor(100, 100, 200), 2, 2, MainTopic, 0);
+                g_state.nodes.push_back(main_topic);
+                g_state.main_topics.push_back(main_topic);
+            }
             if (ImGui::MenuItem("Paste", NULL, false, false)) {}
         }
         ImGui::EndPopup();
@@ -245,7 +269,9 @@ static void draw_editor(bool* opened)
 
     if (ImGui::IsMouseDoubleClicked(0))
     {
-        g_state.nodes.push_back(new Node(g_state.nodes.size(), "Main Topic", scene_pos, 0.5f, ImColor(100, 100, 200), 2, 2, MainTopic, 0));
+        Node *main_topic = new Node(g_state.nodes.size(), "Main Topic", scene_pos, 0.5f, ImColor(100, 100, 200), 2, 2, MainTopic, 0);
+        g_state.nodes.push_back(main_topic);
+        g_state.main_topics.push_back(main_topic);
         g_state.node_selected = g_state.nodes.size()-1;
     }
 

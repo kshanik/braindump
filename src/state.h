@@ -38,8 +38,8 @@ struct Node
         parent = p;
     }
 
-    ImVec2 GetInputSlotPos(int slot_no) const { return ImVec2(Pos.x, Pos.y + Size.y * ((float)slot_no + 1) / ((float)InputsCount + 1)); }
-    ImVec2 GetOutputSlotPos(int slot_no) const { return ImVec2(Pos.x + Size.x, Pos.y + Size.y * ((float)slot_no + 1) / ((float)OutputsCount + 1)); }
+    ImVec2 GetInputSlotPos(int slot_no) const { return ImVec2(Pos.x, Pos.y + Size.y / 2.0f); }
+    ImVec2 GetOutputSlotPos(int slot_no) const { return ImVec2(Pos.x + Size.x, Pos.y + Size.y / 2.0f); }
 };
 
 struct NodeLink
@@ -52,6 +52,7 @@ struct NodeLink
 typedef struct
 {
     std::vector<Node*> nodes;
+    std::vector<Node*> main_topics;
     std::vector<NodeLink*> links;
     bool about_open;
     bool show_grid;
