@@ -10,6 +10,7 @@ enum NodeType
     SubTopic,
 };
 
+struct NodeLink;
 struct Node;
 struct Node
 {
@@ -24,6 +25,7 @@ struct Node
 
     Node    *parent;
     std::vector<Node*> children;
+    std::vector<NodeLink*> links;
 
     Node(int id, const char* name, const ImVec2& pos, float value, const ImVec4& color, int inputs_count, int outputs_count, NodeType type, Node *p)
     {
@@ -45,7 +47,6 @@ struct Node
 struct NodeLink
 {
     int     InputIdx, InputSlot, OutputIdx, OutputSlot;
-
     NodeLink(int input_idx, int input_slot, int output_idx, int output_slot) { InputIdx = input_idx; InputSlot = input_slot; OutputIdx = output_idx; OutputSlot = output_slot; }
 };
 
@@ -53,7 +54,6 @@ typedef struct
 {
     std::vector<Node*> nodes;
     std::vector<Node*> main_topics;
-    std::vector<NodeLink*> links;
     bool about_open;
     bool show_grid;
     bool show_nodes;

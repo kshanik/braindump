@@ -13,7 +13,7 @@ void add_child(Node *node)
     node->children.push_back(new_node);
     g_state.nodes.push_back(new_node);
     NodeLink *link = new NodeLink(g_state.node_selected, 0, new_node->ID, 0);
-    g_state.links.push_back(link);
+    node->links.push_back(link);
     g_state.node_selected = new_node->ID;
 }
 
@@ -37,7 +37,7 @@ void add_sibling(Node *node)
             Node *new_node = new Node(g_state.nodes.size(), "Sub Topic", pos, 0.5f, ImColor(100, 100, 200), 2, 2, SubTopic, node->parent);
             g_state.nodes.push_back(new_node);
             node->parent->children.insert(it, new_node);
-            g_state.links.push_back(new NodeLink(parent_index, 0, new_node->ID, 0));
+            node->parent->links.push_back(new NodeLink(parent_index, 0, new_node->ID, 0));
             g_state.node_selected = new_node->ID;
         }
     }
@@ -121,16 +121,6 @@ static void draw_editor(bool* opened)
     // Display links
     draw_list->ChannelsSplit(2);
     draw_list->ChannelsSetCurrent(0); // Background
-    for (int link_idx = 0; link_idx < g_state.links.size(); link_idx++)
-    {
-        NodeLink* link = g_state.links[link_idx];
-        Node* node_inp = g_state.nodes[link->InputIdx];
-        Node* node_out = g_state.nodes[link->OutputIdx];
-        ImVec2 p1 = offset + node_inp->GetOutputSlotPos(link->InputSlot);
-        ImVec2 p2 = offset + node_out->GetInputSlotPos(link->OutputSlot);
-        draw_list->AddBezierCurve(p1, p1 + ImVec2(+50, 0), p2 + ImVec2(-50, 0), p2, IM_COL32(200, 200, 100, 255), 1.0f);
-    }
-
 
     // Display nodes
     for (int main_topic_idx = 0; main_topic_idx < g_state.main_topics.size(); main_topic_idx++)
@@ -213,6 +203,17 @@ static void draw_editor(bool* opened)
                 // for (int slot_idx = 0; slot_idx < node->OutputsCount; slot_idx++)
                 //     draw_list->AddCircleFilled(offset + node->GetOutputSlotPos(slot_idx), NODE_SLOT_RADIUS, IM_COL32(150, 150, 150, 150));
                 ImGui::PopID();
+
+
+                for (int link_idx = 0; link_idx < node->links.size(); link_idx++)
+                {
+                    NodeLink* link = node->links[link_idx];
+                    Node* node_inp = g_state.nodes[link->InputIdx];
+                    Node* node_out = g_state.nodes[link->OutputIdx];
+                    ImVec2 p1 = offset + node_inp->GetOutputSlotPos(link->InputSlot);
+                    ImVec2 p2 = offset + node_out->GetInputSlotPos(link->OutputSlot);
+                    draw_list->AddBezierCurve(p1, p1 + ImVec2(+50, 0), p2 + ImVec2(-50, 0), p2, IM_COL32(200, 200, 100, 255), 1.0f);
+                }
 
                 for (int child_idx = 0; child_idx < node->children.size(); child_idx++)
                 {
