@@ -3,33 +3,26 @@
 
 #define PADDING_BETWEEN_PARENT_CHILD 30
 
-int index_of_node(Node *node)
-{
-    for (int i = 0; i < g_state.nodes.size(); i++)
-    {
-        if (node == g_state.nodes[i])
-        {
-            return i;
-        }
-    }
-    return -1;
-}
-
 void add_child(Node *node)
 {
+    g_state.count++;
     ImVec2 pos;
     pos.x = node->Pos.x + node->Size.x + PADDING_BETWEEN_PARENT_CHILD;
     pos.y = node->Pos.y;
     Node *new_node = new Node(g_state.nodes.size(), "Sub Topic", pos, 0.5f, ImColor(100, 100, 200), 2, 2, SubTopic, node);
     node->children.push_back(new_node);
     g_state.nodes.push_back(new_node);
-    NodeLink *link = new NodeLink(g_state.node_selected, 0, g_state.nodes.size()-1, 0);
+    NodeLink *link = new NodeLink(g_state.node_selected, 0, new_node->ID, 0);
     g_state.links.push_back(link);
-    g_state.node_selected = g_state.nodes.size()-1;
+    g_state.node_selected = new_node->ID;
 }
 
 void add_sibling(Node *node)
 {
+    if (node->Type == MainTopic)
+        return;
+
+    g_state.count++;
     ImVec2 pos;
     int parent_index = node->parent->ID;
     int selected_node_index = node->ID;
@@ -44,10 +37,18 @@ void add_sibling(Node *node)
             Node *new_node = new Node(g_state.nodes.size(), "Sub Topic", pos, 0.5f, ImColor(100, 100, 200), 2, 2, SubTopic, node->parent);
             g_state.nodes.push_back(new_node);
             node->parent->children.insert(it, new_node);
-            g_state.links.push_back(new NodeLink(parent_index, 0, g_state.nodes.size()-1, 0));
-            g_state.node_selected = g_state.nodes.size()-1;
+            g_state.links.push_back(new NodeLink(parent_index, 0, new_node->ID, 0));
+            g_state.node_selected = new_node->ID;
         }
     }
+}
+
+void add_main_topic(ImVec2 scene_pos)
+{
+    Node *main_topic = new Node(g_state.nodes.size(), "Main Topic", scene_pos, 0.5f, ImColor(100, 100, 200), 2, 2, MainTopic, 0);
+    g_state.nodes.push_back(main_topic);
+    g_state.main_topics.push_back(main_topic);
+    g_state.node_selected = main_topic->ID;
 }
 
 // Really dumb data structure provided for the example.
@@ -102,6 +103,7 @@ static void draw_editor(bool* opened)
     ImGui::PushItemWidth(120.0f);
 
     ImVec2 offset = ImGui::GetCursorScreenPos() + g_state.scrolling;
+    ImVec2 scene_pos = ImGui::GetMousePosOnOpeningCurrentPopup() - offset;
     ImDrawList* draw_list = ImGui::GetWindowDrawList();
     // Display grid
     if (g_state.show_grid)
@@ -129,7 +131,6 @@ static void draw_editor(bool* opened)
         draw_list->AddBezierCurve(p1, p1 + ImVec2(+50, 0), p2 + ImVec2(-50, 0), p2, IM_COL32(200, 200, 100, 255), 1.0f);
     }
 
-    ImVec2 scene_pos = ImGui::GetMousePosOnOpeningCurrentPopup() - offset;
 
     // Display nodes
     for (int main_topic_idx = 0; main_topic_idx < g_state.main_topics.size(); main_topic_idx++)
@@ -164,12 +165,11 @@ static void draw_editor(bool* opened)
                         return 0; 
                     }
                 };
-
                 if (g_state.node_selected == node->ID)
                 {
                     if (ImGui::IsRootWindowOrAnyChildFocused() && !ImGui::IsAnyItemActive() && !ImGui::IsMouseClicked(0))
                     {
-                       ImGui::SetKeyboardFocusHere(0);
+                        ImGui::SetKeyboardFocusHere(0);
                     }
                     ImVec2 text_size = ImGui::CalcTextSize(node->Name);
                     ImGui::PushItemWidth(text_size.x+10);
@@ -239,6 +239,7 @@ static void draw_editor(bool* opened)
             g_state.node_selected = node_hovered_in_scene;
     }
 
+    /*
     // Draw context menu
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8, 8));
     if (ImGui::BeginPopup("context_menu"))
@@ -265,15 +266,8 @@ static void draw_editor(bool* opened)
         ImGui::EndPopup();
     }
     ImGui::PopStyleVar();
+    */
 
-
-    if (ImGui::IsMouseDoubleClicked(0))
-    {
-        Node *main_topic = new Node(g_state.nodes.size(), "Main Topic", scene_pos, 0.5f, ImColor(100, 100, 200), 2, 2, MainTopic, 0);
-        g_state.nodes.push_back(main_topic);
-        g_state.main_topics.push_back(main_topic);
-        g_state.node_selected = g_state.nodes.size()-1;
-    }
 
     // Scrolling
     if (ImGui::IsWindowHovered() && !ImGui::IsAnyItemActive())
@@ -286,6 +280,11 @@ static void draw_editor(bool* opened)
         {
             g_state.node_selected = -1;
         }
+    }
+
+    if (ImGui::IsMouseDoubleClicked(0))
+    {
+        add_main_topic(scene_pos-ImVec2(20, 20));
     }
 
     if (ImGui::IsKeyPressedMap(ImGuiKey_Enter) || ImGui::IsKeyPressedMap(ImGuiKey_KeyPadEnter))

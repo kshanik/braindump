@@ -60,6 +60,7 @@ typedef struct
     bool quit = false;
     ImVec2 scrolling = ImVec2(0.0f, 0.0f);
     int node_selected = -1;
+    int count = 0;
 } global_state;
 
 global_state g_state = {};
