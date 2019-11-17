@@ -1,4 +1,3 @@
-
 // NB: You can use math functions/operators on ImVec2 if you #define IMGUI_DEFINE_MATH_OPERATORS and #include "imgui_internal.h"
 // Here we only declare simple +/- operators so others don't leak into the demo code.
 static inline ImVec2 operator+(const ImVec2& lhs, const ImVec2& rhs) { return ImVec2(lhs.x + rhs.x, lhs.y + rhs.y); }
@@ -14,18 +13,18 @@ struct NodeLink;
 struct Node;
 struct Node
 {
-    int      ID;
-    char     Name[256];
-    NodeType Type;
-    ImVec2   Pos, Size;
-    float    Value;
-    ImVec4   Color;
-    int      InputsCount, OutputsCount;
-    bool     Focused;
+    int                     ID;
+    char                    Name[256];
+    NodeType                Type;
+    ImVec2                  Pos, Size;
+    float                   Value;
+    ImVec4                  Color;
+    int                     InputsCount, OutputsCount;
+    bool                    Focused;
 
-    Node    *parent;
-    std::vector<Node*> children;
-    std::vector<NodeLink*> links;
+    Node                    *parent;
+    std::vector<int>        children;
+    std::vector<NodeLink*>  links;
 
     Node(int id, const char* name, const ImVec2& pos, float value, const ImVec4& color, int inputs_count, int outputs_count, NodeType type, Node *p)
     {
@@ -52,7 +51,7 @@ struct NodeLink
 
 typedef struct
 {
-    std::vector<Node*> nodes;
+    std::map<int, Node*> nodes;
     std::vector<Node*> main_topics;
     bool about_open;
     bool show_grid;

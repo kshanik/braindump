@@ -14,6 +14,7 @@
 #include <SDL_opengl.h>
 
 #include <vector>
+#include <map>
 
 #include "state.h"
 #include "editor.cpp"

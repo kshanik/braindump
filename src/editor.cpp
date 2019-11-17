@@ -5,16 +5,16 @@
 
 void add_child(Node *node)
 {
-    g_state.count++;
     ImVec2 pos;
     pos.x = node->Pos.x + node->Size.x + PADDING_BETWEEN_PARENT_CHILD;
     pos.y = node->Pos.y;
-    Node *new_node = new Node(g_state.nodes.size(), "Sub Topic", pos, 0.5f, ImColor(100, 100, 200), 2, 2, SubTopic, node);
-    node->children.push_back(new_node);
-    g_state.nodes.push_back(new_node);
+    Node *new_node = new Node(g_state.count, "Sub Topic", pos, 0.5f, ImColor(100, 100, 200), 2, 2, SubTopic, node);
+    node->children.push_back(g_state.count);
+    g_state.nodes[g_state.count] = new_node;
     NodeLink *link = new NodeLink(node->ID, 0, new_node->ID, 0);
     node->links.push_back(link);
     g_state.node_selected = new_node->ID;
+    g_state.count++;
 }
 
 void add_sibling(Node *node)
@@ -22,7 +22,6 @@ void add_sibling(Node *node)
     if (node->Type == MainTopic)
         return;
 
-    g_state.count++;
     ImVec2 pos;
     int parent_index = node->parent->ID;
     int selected_node_index = node->ID;
@@ -30,25 +29,27 @@ void add_sibling(Node *node)
     {
         pos.x = node->Pos.x;
         pos.y = node->Pos.y + node->Size.y;
-        std::vector<Node*>::iterator it;
-        it = std::find(node->parent->children.begin(), node->parent->children.end(), node);
+        std::vector<int>::iterator it;
+        it = std::find(node->parent->children.begin(), node->parent->children.end(), node->ID);
         if (it != node->parent->children.end())
         {
-            Node *new_node = new Node(g_state.nodes.size(), "Sub Topic", pos, 0.5f, ImColor(100, 100, 200), 2, 2, SubTopic, node->parent);
-            g_state.nodes.push_back(new_node);
-            node->parent->children.insert(it, new_node);
+            Node *new_node = new Node(g_state.count, "Sub Topic", pos, 0.5f, ImColor(100, 100, 200), 2, 2, SubTopic, node->parent);
+            g_state.nodes[g_state.count] = new_node;
+            node->parent->children.insert(it, g_state.count);
             node->parent->links.push_back(new NodeLink(parent_index, 0, new_node->ID, 0));
             g_state.node_selected = new_node->ID;
+            g_state.count++;
         }
     }
 }
 
 void add_main_topic(ImVec2 scene_pos)
 {
-    Node *main_topic = new Node(g_state.nodes.size(), "Main Topic", scene_pos, 0.5f, ImColor(100, 100, 200), 2, 2, MainTopic, 0);
-    g_state.nodes.push_back(main_topic);
+    Node *main_topic = new Node(g_state.count, "Main Topic", scene_pos, 0.5f, ImColor(100, 100, 200), 2, 2, MainTopic, 0);
+    g_state.nodes[g_state.count] = main_topic;
     g_state.main_topics.push_back(main_topic);
     g_state.node_selected = main_topic->ID;
+    g_state.count++;
 }
 
 // Really dumb data structure provided for the example.
@@ -68,12 +69,12 @@ static void draw_editor(bool* opened)
     int node_hovered_in_scene = -1;
     if (g_state.show_nodes)
     {
+        
         ImGui::BeginChild("node_list", ImVec2(100, 0));
         ImGui::Text("Nodes");
         ImGui::Separator();
-        for (int node_idx = 0; node_idx < g_state.nodes.size(); node_idx++)
-        {
-            Node* node = g_state.nodes[node_idx];
+        for(std::map<int, Node*>::iterator it = g_state.nodes.begin(); it != g_state.nodes.end(); ++it) {
+            Node* node = it->second;
             ImGui::PushID(node->ID);
             if (ImGui::Selectable(node->Name, node->ID == g_state.node_selected))
                 g_state.node_selected = node->ID;
@@ -217,7 +218,7 @@ static void draw_editor(bool* opened)
 
                 for (int child_idx = 0; child_idx < node->children.size(); child_idx++)
                 {
-                    new_nodes.push_back(node->children[child_idx]);
+                    new_nodes.push_back(g_state.nodes[node->children[child_idx]]);
                 }
             }
             nodes = new_nodes;
