@@ -12,7 +12,7 @@ void add_child(Node *node)
     Node *new_node = new Node(g_state.nodes.size(), "Sub Topic", pos, 0.5f, ImColor(100, 100, 200), 2, 2, SubTopic, node);
     node->children.push_back(new_node);
     g_state.nodes.push_back(new_node);
-    NodeLink *link = new NodeLink(g_state.node_selected, 0, new_node->ID, 0);
+    NodeLink *link = new NodeLink(node->ID, 0, new_node->ID, 0);
     node->links.push_back(link);
     g_state.node_selected = new_node->ID;
 }
@@ -223,7 +223,6 @@ static void draw_editor(bool* opened)
             nodes = new_nodes;
         }
     }
-    draw_list->ChannelsMerge();
 
     // Open context menu
     if (!ImGui::IsAnyItemHovered() && ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByPopup | ImGuiHoveredFlags_AllowWhenBlockedByActiveItem) && ImGui::IsMouseClicked(1))
@@ -271,9 +270,11 @@ static void draw_editor(bool* opened)
 
 
     // Scrolling
-    if (ImGui::IsWindowHovered() && !ImGui::IsAnyItemActive())
+    bool is_window_hovered = ImGui::IsWindowHovered();
+    bool is_any_item_active = ImGui::IsAnyItemActive();
+    if (is_window_hovered && !is_any_item_active)
     {
-        if (ImGui::IsMouseDragging(3, 0.0f) || ImGui::IsMouseDown(3))
+        if (ImGui::IsMouseDown(3))
         {
             g_state.scrolling = g_state.scrolling + ImGui::GetIO().MouseDelta;
         }
@@ -281,6 +282,34 @@ static void draw_editor(bool* opened)
         {
             g_state.node_selected = -1;
         }
+
+    }
+
+    static bool selection_in_progress = false;
+    static ImVec2 old_scene_pos;
+    if (is_window_hovered && is_any_item_active)
+    {
+        if (ImGui::IsMouseDown(0))
+        {
+            if (ImGui::IsMouseDragging(0, 3.0f) && selection_in_progress == false)
+            {
+                selection_in_progress = true;
+                old_scene_pos = scene_pos + offset;
+            }
+        }
+
+        if (selection_in_progress)
+        {
+            ImVec2 size(10, 10);
+            ImVec2 new_scene_pos = scene_pos + offset;
+            draw_list->AddRectFilled(old_scene_pos, new_scene_pos, IM_COL32(255, 0, 0, 20), 0.0f);
+            draw_list->AddRect(old_scene_pos, new_scene_pos, IM_COL32(255, 0, 0, 255), 0.0f);
+            // printf("%f %f %f %f\n", old_scene_pos.x, old_scene_pos.y, size.x, size.y); fflush(stdout);
+        }
+    }
+    if (!ImGui::IsAnyMouseDown())
+    {
+        selection_in_progress = false;
     }
 
     if (ImGui::IsMouseDoubleClicked(0))
@@ -296,6 +325,7 @@ static void draw_editor(bool* opened)
         }
     }
 
+    draw_list->ChannelsMerge();
     ImGui::PopItemWidth();
     ImGui::EndChild();
     ImGui::PopStyleColor();
