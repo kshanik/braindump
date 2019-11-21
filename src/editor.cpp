@@ -52,6 +52,45 @@ void add_main_topic(ImVec2 scene_pos)
     g_state.count++;
 }
 
+void delete_node(Node *node)
+{
+    for (int i = 0; i < node->children.size(); i++)
+    {
+        delete_node(g_state.nodes[node->children[i]]);
+    }
+    g_state.nodes.erase(node->ID);
+    delete node;
+}
+
+void delete_topic(Node *node)
+{
+    if (node->parent)
+    {
+        node->parent->children.erase(std::remove(node->parent->children.begin(), node->parent->children.end(), node->ID), node->parent->children.end());
+        for (int i = 0 ; i < node->parent->links.size(); i++)
+        {
+            if (node->parent->links[i]->OutputIdx == node->ID)
+            {
+                NodeLink *nl = node->parent->links[i];
+                std::vector<NodeLink*>::iterator it = std::find(node->parent->links.begin(), node->parent->links.end(), nl);
+                if (it != node->parent->links.end())
+                {
+                    node->parent->links.erase(it);
+                    delete nl;
+                    break;
+                }
+            }
+        }
+        g_state.node_selected = node->parent->ID;
+    }
+
+    if (node->Type == MainTopic)
+    {
+        g_state.main_topics.erase(std::remove(g_state.main_topics.begin(), g_state.main_topics.end(), node));
+    }
+    delete_node(node);
+}
+
 // Really dumb data structure provided for the example.
 // Note that we storing links are INDICES (not ID) to make example code shorter, obviously a bad idea for any general purpose code.
 static void draw_editor(bool* opened)
@@ -240,7 +279,6 @@ static void draw_editor(bool* opened)
             g_state.node_selected = node_hovered_in_scene;
     }
 
-    /*
     // Draw context menu
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8, 8));
     if (ImGui::BeginPopup("context_menu"))
@@ -251,23 +289,15 @@ static void draw_editor(bool* opened)
             ImGui::Text("Node '%s'", node->Name);
             ImGui::Separator();
             if (ImGui::MenuItem("Rename..", NULL, false, false)) {}
-            if (ImGui::MenuItem("Delete", NULL, false, false)) {}
-            if (ImGui::MenuItem("Copy", NULL, false, false)) {}
-        }
-        else
-        {
-            if (ImGui::MenuItem("Add"))
+            if (ImGui::MenuItem("Delete", NULL, false, true))
             {
-                Node *main_topic = new Node(g_state.nodes.size(), "Sub Topic", scene_pos, 0.5f, ImColor(100, 100, 200), 2, 2, MainTopic, 0);
-                g_state.nodes.push_back(main_topic);
-                g_state.main_topics.push_back(main_topic);
+                delete_topic(node);
             }
-            if (ImGui::MenuItem("Paste", NULL, false, false)) {}
+            if (ImGui::MenuItem("Copy", NULL, false, false)) {}
         }
         ImGui::EndPopup();
     }
     ImGui::PopStyleVar();
-    */
 
 
     // Scrolling

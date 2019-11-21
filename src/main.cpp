@@ -15,6 +15,7 @@
 
 #include <vector>
 #include <map>
+#include <algorithm>
 
 #include "state.h"
 #include "editor.cpp"
