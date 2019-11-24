@@ -2,6 +2,26 @@
 #include <math.h> // fmodf
 
 #define PADDING_BETWEEN_PARENT_CHILD 30
+#define PADDING_BETWEEN_SILBINGS 10
+
+void arrange_children(Node *node)
+{
+    if (!node)
+    {
+        return;
+    }
+
+    float total_height = node->children.size() * node->Size.y;
+    total_height += node->children.size() > 1 ? ((node->children.size()-1)*PADDING_BETWEEN_SILBINGS) : 0;
+    float startY = node->Pos.y + (node->Size.y/2.0) - (total_height / 2.0f);
+    float startX = node->Size.x + PADDING_BETWEEN_PARENT_CHILD;
+    for (int i = 0; i < node->children.size(); i++)
+    {
+        Node *n  = g_state.nodes[node->children[i]];
+        n->Pos.y = startY;
+        startY  += node->Size.y + PADDING_BETWEEN_SILBINGS;
+    }
+}
 
 void add_child(Node *node)
 {
@@ -15,6 +35,7 @@ void add_child(Node *node)
     node->links.push_back(link);
     g_state.node_selected = new_node->ID;
     g_state.count++;
+    arrange_children(node->parent);
 }
 
 void add_sibling(Node *node)
@@ -39,6 +60,7 @@ void add_sibling(Node *node)
             node->parent->links.push_back(new NodeLink(parent_index, 0, new_node->ID, 0));
             g_state.node_selected = new_node->ID;
             g_state.count++;
+            arrange_children(node->parent);
         }
     }
 }
@@ -82,6 +104,7 @@ void delete_topic(Node *node)
             }
         }
         g_state.node_selected = node->parent->ID;
+        arrange_children(node->parent);
     }
 
     if (node->Type == MainTopic)
@@ -316,31 +339,28 @@ static void draw_editor(bool* opened)
 
     }
 
-    static bool selection_in_progress = false;
-    static ImVec2 old_scene_pos;
     if (is_window_hovered && is_any_item_active)
     {
         if (ImGui::IsMouseDown(0))
         {
-            if (ImGui::IsMouseDragging(0, 3.0f) && selection_in_progress == false)
+            if (ImGui::IsMouseDragging(0, 3.0f) && g_state.selection_in_progress == false)
             {
-                selection_in_progress = true;
-                old_scene_pos = scene_pos + offset;
+                g_state.selection_in_progress = true;
+                g_state.old_scene_pos = scene_pos + offset;
             }
         }
 
-        if (selection_in_progress)
+        if (g_state.selection_in_progress)
         {
             ImVec2 size(10, 10);
             ImVec2 new_scene_pos = scene_pos + offset;
-            draw_list->AddRectFilled(old_scene_pos, new_scene_pos, IM_COL32(255, 0, 0, 20), 0.0f);
-            draw_list->AddRect(old_scene_pos, new_scene_pos, IM_COL32(255, 0, 0, 255), 0.0f);
-            // printf("%f %f %f %f\n", old_scene_pos.x, old_scene_pos.y, size.x, size.y); fflush(stdout);
+            draw_list->AddRectFilled(g_state.old_scene_pos, new_scene_pos, IM_COL32(255, 0, 0, 20), 0.0f);
+            draw_list->AddRect(g_state.old_scene_pos, new_scene_pos, IM_COL32(255, 0, 0, 255), 0.0f);
         }
     }
     if (!ImGui::IsAnyMouseDown())
     {
-        selection_in_progress = false;
+        g_state.selection_in_progress = false;
     }
 
     if (ImGui::IsMouseDoubleClicked(0))

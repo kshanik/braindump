@@ -60,6 +60,9 @@ typedef struct
     ImVec2 scrolling = ImVec2(0.0f, 0.0f);
     int node_selected = -1;
     int count = 0;
+
+    ImVec2 old_scene_pos;
+    bool selection_in_progress = false;
 } global_state;
 
 global_state g_state = {};
