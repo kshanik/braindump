@@ -35,7 +35,7 @@ void add_child(Node *node)
     node->links.push_back(link);
     g_state.node_selected = new_node->ID;
     g_state.count++;
-    arrange_children(node->parent);
+    arrange_children(node);
 }
 
 void add_sibling(Node *node)
