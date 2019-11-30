@@ -14,11 +14,12 @@ void arrange_children(Node *node)
     float total_height = node->children.size() * node->Size.y;
     total_height += node->children.size() > 1 ? ((node->children.size()-1)*PADDING_BETWEEN_SILBINGS) : 0;
     float startY = node->Pos.y + (node->Size.y/2.0) - (total_height / 2.0f);
-    float startX = node->Size.x + PADDING_BETWEEN_PARENT_CHILD;
+    float startX = node->Pos.x + node->Size.x + PADDING_BETWEEN_PARENT_CHILD;
     for (int i = 0; i < node->children.size(); i++)
     {
         Node *n  = g_state.nodes[node->children[i]];
         n->Pos.y = startY;
+        n->Pos.x = startX;
         startY  += node->Size.y + PADDING_BETWEEN_SILBINGS;
     }
 }
@@ -56,7 +57,7 @@ void add_sibling(Node *node)
         {
             Node *new_node = new Node(g_state.count, "Sub Topic", pos, 0.5f, ImColor(100, 100, 200), 2, 2, SubTopic, node->parent);
             g_state.nodes[g_state.count] = new_node;
-            node->parent->children.insert(it, g_state.count);
+            node->parent->children.insert(it+1, g_state.count);
             node->parent->links.push_back(new NodeLink(parent_index, 0, new_node->ID, 0));
             g_state.node_selected = new_node->ID;
             g_state.count++;
@@ -256,7 +257,9 @@ static void draw_editor(bool* opened)
                 if (node_widgets_active || node_moving_active)
                     g_state.node_selected = node->ID;
                 if (node_moving_active && ImGui::IsMouseDragging(0))
+                {
                     node->Pos = node->Pos + ImGui::GetIO().MouseDelta;
+                }
 
                 ImU32 node_bg_color = (node_hovered_in_list == node->ID || node_hovered_in_scene == node->ID || (node_hovered_in_list == -1 && g_state.node_selected == node->ID)) ? IM_COL32(75, 75, 75, 255) : IM_COL32(60, 60, 60, 255);
                 draw_list->AddRectFilled(node_rect_min, node_rect_max, node_bg_color, 4.0f);
